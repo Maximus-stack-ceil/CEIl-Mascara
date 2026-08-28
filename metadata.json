@@ -1,0 +1,6 @@
+{
+  "name": "مركز التعليم المكثف للغات",
+  "description": "لوحة تحكم الأستاذ والإدارة لمركز التعليم المكثف للغات",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

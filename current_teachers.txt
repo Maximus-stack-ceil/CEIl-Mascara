@@ -1,0 +1,97 @@
+        function renderTeachersList() {
+            return `
+                <div class="max-w-6xl mx-auto">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-800">قائمة الأساتذة</h2>
+                            <p class="text-gray-500 text-sm mt-1">إدارة وعرض بيانات الأساتذة المسجلين في المركز</p>
+                        </div>
+                        <button onclick="loadTeachersList()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium shadow-sm flex items-center gap-2 transition text-sm">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i> تحديث
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right">
+                                <thead class="bg-gray-50 border-b border-gray-100 text-gray-600 text-sm">
+                                    <tr>
+                                        <th class="p-4 font-semibold">الاسم الكامل</th>
+                                        <th class="p-4 font-semibold">البريد الإلكتروني</th>
+                                        <th class="p-4 font-semibold">رقم الهاتف</th>
+                                        <th class="p-4 font-semibold">اللغة / التخصص</th>
+                                        <th class="p-4 font-semibold">ملاحظات (الرقم السري)</th>
+                                        <th class="p-4 font-semibold">تاريخ الانضمام</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="teachersListTableBody" class="divide-y divide-gray-100">
+                                    <tr><td colspan="6" class="text-center p-8 text-gray-500">جاري التحميل...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadTeachersList() {
+            const tbody = document.getElementById('teachersListTableBody');
+            if (!tbody) return;
+            
+            const supabase = typeof supabaseClient !== 'undefined' ? supabaseClient : window.supabaseClient;
+            
+            try {
+                // 1. Fetch teachers from profiles
+                const { data: teachers, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('role', 'teacher')
+                    .order('created_at', { ascending: false });
+                    
+                if (error) throw error;
+                
+                // 2. Fetch requests separately to avoid Foreign Key (PGRST200) errors
+                const { data: requests, error: reqError } = await supabase
+                    .from('teacher_requests')
+                    .select('*')
+                    .eq('status', 'approved');
+                
+                if (!teachers || teachers.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500">لا يوجد أساتذة مسجلين حالياً.</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = teachers.map(teacher => {
+                    // Match request by full_name or email
+                    const reqInfo = requests 
+                        ? requests.find(r => r.full_name === teacher.full_name || (r.email && teacher.email && r.email === teacher.email)) || {} 
+                        : {};
+                        
+                    const phone = reqInfo.phone || '-';
+                    const language = reqInfo.language || '-';
+                    const adminNotes = reqInfo.admin_notes || '-';
+                    const date = new Date(teacher.created_at).toLocaleDateString('ar-EG');
+                    const email = teacher.email || reqInfo.email || '-';
+                    
+                    return `
+                        <tr class="hover:bg-gray-50 transition border-b border-gray-50 last:border-0">
+                            <td class="p-4 font-medium text-gray-800">${teacher.full_name || '-'}</td>
+                            <td class="p-4 text-gray-600">${email}</td>
+                            <td class="p-4 text-gray-600" dir="ltr" style="text-align: right">${phone}</td>
+                            <td class="p-4 text-gray-600">${language}</td>
+                            <td class="p-4 text-gray-600">${adminNotes}</td>
+                            <td class="p-4 text-gray-500 text-sm">${date}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                if (window.lucide) lucide.createIcons();
+                
+            } catch (err) {
+                console.error("Error loading teachers list:", err);
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-red-500">حدث خطأ أثناء تحميل البيانات: ${err.message}</td></tr>`;
+            }
+        }
+
+
+        function renderGroupsLevelsSection() {
